@@ -1,11 +1,7 @@
-from aws_cdk import core as cdk
-
-# For consistency with other languages, `cdk` is the preferred import name for
-# the CDK's core module.  The following line also imports it as `core` for use
-# with examples from the CDK Developer's Guide, which are in the process of
-# being updated to use `cdk`.  You may delete this import if you don't need it.
-from aws_cdk import core
-
+from aws_cdk import (    
+    core as cdk,
+    aws_apigateway as aws_apigateway
+)
 
 class CdkApikeyPyStack(cdk.Stack):
 
@@ -13,3 +9,19 @@ class CdkApikeyPyStack(cdk.Stack):
         super().__init__(scope, construct_id, **kwargs)
 
         # The code that defines your stack goes here
+        
+        ap_api = aws_apigateway.RestApi(self, id='alpha-price-mule-api', deploy=False)
+        
+        ap_deployment = aws_apigateway.Deployment(self, id='ap-deployment', api=ap_api)
+        aws_apigateway.Stage(self, id='ap-stage', deployment=ap_deployment, stage_name='Prod')
+        
+        ap_api.root.add_method('ANY')
+        
+        ap_deployment2 = aws_apigateway.Deployment(self, id='ap-deployment2', api=ap_api)
+        stagename = aws_apigateway.Stage(self, id='ap-stage2', deployment=ap_deployment2, stage_name='Stage')
+        
+        ap_api.deployment_stage = stagename
+        
+        key_mule = ap_api.add_api_key(id='mule', api_key_name='mule')
+        plan = ap_api.add_usage_plan(id='Usage-plan-mule', name='mule', api_key=key_mule, throttle=aws_apigateway.ThrottleSettings(rate_limit=100, burst_limit=200))
+        plan.add_api_stage(api=ap_api, stage=ap_api.deployment_stage)
